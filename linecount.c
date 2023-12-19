@@ -86,7 +86,7 @@ struct array_list * parse_file(const char * filename, int * line_count) {
     char * dependency_start = strstr(buffer, INCLUDE);
     int dependency_start_pos = dependency_start - buffer;  
     if(dependency_start && dependency_start_pos == 0) {
-      printf("buffer %s linecount %d\n", buffer, num_lines);
+      // printf("buffer %s linecount %d\n", buffer, num_lines);
       char * angle_dependency = get_include_name(buffer, angle_delim, 
                                                 angle_delim_end); 
       char * quote_dependency = get_include_name(buffer, quote_delim, 
@@ -101,6 +101,8 @@ struct array_list * parse_file(const char * filename, int * line_count) {
       printf("dependency %s\n", dependency_name.str_data); 
     }
   }
+  
+  printf("%s has %d dependencies\n", filename, get_size(dependencies));
 
   *line_count = num_lines; 
   return dependencies; 
