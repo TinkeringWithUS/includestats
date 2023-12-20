@@ -1,2 +1,4 @@
 test_dir/*
 .vscode/settings.json
+.fileVertex.c
+.fileVertex.h

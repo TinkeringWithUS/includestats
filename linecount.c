@@ -14,16 +14,6 @@
 
 #define INCLUDE "#include "
 
-struct file_info {
-  // store a list of file dependencies
-  // e.g. like <string.h> <unistd.h> etc
-  // store links to file_info ptrs
-  struct array_list *dependencies;
-
-  // num times this file has been referenced
-  int reference_count;
-};
-
 // grab substring excluding delim_start and delim_end
 // if delim_start == delim_end, will still work (e.g. "hi" returns hi)
 char *get_include_name(char *include_line, char delim_start, char delim_end) {
@@ -58,11 +48,15 @@ char *get_include_name(char *include_line, char delim_start, char delim_end) {
 // e.g. #include <stdio.h>, <stdlib.h>
 struct array_list *parse_file(const char *filename, int *line_count) {
   char buffer[buff_size];
+
+  printf("parse file, passed in filename %s len pre: %d\n", filename,
+         strlen(filename));
   FILE *fptr = fopen(filename, "r");
+  printf("parse file, fopened %s len post: %d\n", filename, strlen(filename));
 
   if (fptr == NULL) {
     printf("fptr is null in count file. filename %s\n", filename);
-    return -1;
+    return NULL;
   }
 
   size_t num_lines = 0;
@@ -115,10 +109,12 @@ bool skip_dir(char *dir_name) {
 }
 
 char *subdir_path(char *entry_name, const char *parent_dir) {
-  size_t subdir_path_length = strlen(parent_dir) + strlen(entry_name) + 1;
-  char *subdir_path = calloc(sizeof(char), subdir_path_length);
+  // +2 1 for null term and another for /, dont always need a /, so +1 is fine
+  // occassionally
+  size_t subdir_path_length = strlen(parent_dir) + strlen(entry_name) + 2;
+  char *subdir_path = calloc(subdir_path_length, sizeof(char));
 
-  strncat(subdir_path, parent_dir, strlen(parent_dir) + 1);
+  strncat(subdir_path, parent_dir, strlen(parent_dir));
 
   if (subdir_path[strlen(subdir_path) - 1] != '/') {
     strncat(subdir_path, "/", strlen("/") + 1);
@@ -130,6 +126,19 @@ char *subdir_path(char *entry_name, const char *parent_dir) {
 }
 
 bool analyze_dir(const char *dir_path) {
+  struct stat stat_buff;
+
+  if (stat(dir_path, &stat_buff) == 0) {
+    if (S_ISREG(stat_buff.st_mode)) {
+      // we hit a file, parse it and print contents
+      int line_count = 0;
+      printf("dir path in analyze dir base case: %s\n", dir_path);
+      // loop backwards,
+      struct array_list *dependencies = parse_file(dir_path, &line_count);
+      return true;
+    }
+  }
+
   DIR *current_dir = opendir(dir_path);
 
   printf("analyze dir path %s\n", dir_path);
@@ -167,7 +176,7 @@ bool analyze_dir(const char *dir_path) {
       struct array_list *dependencies = parse_file(subdir, &linecount);
 
       // this is a file, print out the line count with fgets
-      printf("filename %s line count: %ld\n", current_dir_entry->d_name,
+      printf("filename %s line count: %d\n", current_dir_entry->d_name,
              linecount);
       // count_file(subdir));
       free(subdir);
@@ -181,22 +190,30 @@ bool analyze_dir(const char *dir_path) {
 int main(int argc, char *argv[]) {
   char *path = argv[1];
 
-  FILE *fptr = fopen(path, "r");
-
-  char buffer[buff_size];
-
   struct stat stat_buf;
 
-  // char current_dir[4096];
-  char *current_dir = getcwd(path, 4096);
+  // printf("before path check, path %s\n", path);
+
+  if (path == NULL) {
+    path = getcwd(path, buff_size);
+  }
+
+  char current_dir[buff_size];
+  getcwd(current_dir, buff_size);
 
   printf("current dir %s. argv[1], or the path: %s\n", current_dir, path);
 
   if (stat(path, &stat_buf) == 0) {
     if (S_ISREG(stat_buf.st_mode)) {
       int linecount = 0;
-      parse_file(path, &linecount);
-      printf("it's a file, lc: %ld\n", linecount);
+      struct array_list *dependencies = parse_file(path, &linecount);
+      printf("it's a file, lc: %d\n", linecount);
+
+      // out of dependencies, let's construct struct file infos from them
+
+      printf("file dependencies\n");
+      print_list(dependencies);
+
     } else if (S_ISDIR(stat_buf.st_mode)) {
       printf("it's a directory\n");
 

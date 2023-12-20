@@ -102,6 +102,6 @@ int get_size(struct array_list* list) { return list->size; }
 
 void print_list(struct array_list* list) {
   for (int i = 0; i < get_size(list); i++) {
-    printf("(idx: %d, val: %d)\n", i, get_element(list, i)->int_data);
+    printf("(idx: %d, val: %s)\n", i, get_element(list, i)->str_data);
   }
 }
