@@ -10,92 +10,39 @@
 
 #include "arrayList.h"
 
-#define buff_size 4096
+#include "parseFile.h"
 
-#define INCLUDE "#include "
+#include "colors.h"
 
-// grab substring excluding delim_start and delim_end
-// if delim_start == delim_end, will still work (e.g. "hi" returns hi)
-char *get_include_name(char *include_line, char delim_start, char delim_end) {
-  int start_pos = -1;
-  int end_pos = -1;
+// Don't worry about this for now, would take some work. 
+// struct file {
+//   struct dir * parent_dir; 
+//   struct array_list * dependencies; 
+//   char * filename; 
+//   size_t linecount; 
+// };
 
-  int include_length = strlen(include_line);
-  for (size_t i = 0; i < include_length; i++) {
-    if (start_pos == -1 && include_line[i] == delim_start) {
-      start_pos = i;
-    } else if (include_line[i] == delim_end) {
-      end_pos = i;
-    }
-  }
+// struct dir {
+//   struct dir * parent_dir; 
+//   struct array_list * contents;
+//   char * dirname; 
+// };
 
-  if (start_pos < 0 || end_pos < 0) {
-    return NULL;
-  }
+// enum node_type {
+//   file, 
+//   dir,
+// };
 
-  // extra length needed for null terminator is already included
-  char *include_name = calloc(end_pos - start_pos, sizeof(char));
+// struct file_tree_node {
+//   enum node_type type; 
+//   union  
+// };
 
-  int include_name_index = 0;
+// struct file_tree {
 
-  for (size_t i = start_pos + 1; i < end_pos; i++) {
-    include_name[include_name_index++] = include_line[i];
-  }
-  return include_name;
-}
+// };
 
-// get linecounts && a list of files this file depends on
-// e.g. #include <stdio.h>, <stdlib.h>
-struct array_list *parse_file(const char *filename, int *line_count) {
-  char buffer[buff_size];
-
-  printf("parse file, passed in filename %s len pre: %d\n", filename,
-         strlen(filename));
-  FILE *fptr = fopen(filename, "r");
-  printf("parse file, fopened %s len post: %d\n", filename, strlen(filename));
-
-  if (fptr == NULL) {
-    printf("fptr is null in count file. filename %s\n", filename);
-    return NULL;
-  }
-
-  size_t num_lines = 0;
-
-  struct array_list *dependencies = create_list();
-
-  const char quote_delim = '\"';
-  const char angle_delim = '<';
-  const char angle_delim_end = '>';
-
-  while (fgets(buffer, buff_size, fptr)) {
-    // printf("count file. fgets: %s", buffer);
-    num_lines++;
-
-    // ex: "#include <stdio.h>", jump to get stdio.h
-    char *dependency_start = strstr(buffer, INCLUDE);
-    int dependency_start_pos = dependency_start - buffer;
-    if (dependency_start && dependency_start_pos == 0) {
-      // printf("buffer %s linecount %d\n", buffer, num_lines);
-      char *angle_dependency =
-          get_include_name(buffer, angle_delim, angle_delim_end);
-      char *quote_dependency =
-          get_include_name(buffer, quote_delim, quote_delim);
-
-      union array_element dependency_name;
-      dependency_name.str_data =
-          angle_dependency ? angle_dependency : quote_dependency;
-
-      add_element(dependencies, &dependency_name);
-
-      printf("dependency %s\n", dependency_name.str_data);
-    }
-  }
-
-  printf("%s has %d dependencies\n", filename, get_size(dependencies));
-
-  *line_count = num_lines;
-  return dependencies;
-}
+struct array_list * files; 
 
 bool skip_dir(char *dir_name) {
   char *dir_ignore[4] = {".", "..", ".git", ".vscode"};
@@ -111,6 +58,7 @@ bool skip_dir(char *dir_name) {
 char *subdir_path(char *entry_name, const char *parent_dir) {
   // +2 1 for null term and another for /, dont always need a /, so +1 is fine
   // occassionally
+  // can eliminate the 2nd case internal frag with realloc 
   size_t subdir_path_length = strlen(parent_dir) + strlen(entry_name) + 2;
   char *subdir_path = calloc(subdir_path_length, sizeof(char));
 
@@ -135,6 +83,16 @@ bool analyze_dir(const char *dir_path) {
       printf("dir path in analyze dir base case: %s\n", dir_path);
       // loop backwards,
       struct array_list *dependencies = parse_file(dir_path, &line_count);
+      
+      // struct file * root_file = malloc(sizeof(struct file)); 
+      
+      // root_file->dependencies = dependencies; 
+      // root_file->filename = malloc(strlen(dir_path) + 1); 
+      // strncpy(root_file->filename, dir_path, strlen(dir_path));
+
+      // root_file->linecount = line_count; 
+      // root_file->parent_dir = NULL; 
+
       return true;
     }
   }
@@ -169,15 +127,13 @@ bool analyze_dir(const char *dir_path) {
       free(subdir);
     } else if (current_dir_entry->d_type == DT_REG) {
       char *subdir = subdir_path(current_dir_entry->d_name, dir_path);
-
-      analyze_dir(subdir);
-
+      
       int linecount = 0;
       struct array_list *dependencies = parse_file(subdir, &linecount);
 
       // this is a file, print out the line count with fgets
-      printf("filename %s line count: %d\n", current_dir_entry->d_name,
-             linecount);
+      printf("filename %s%s line count: %d %s\n", current_dir_entry->d_name,
+            ANSI_COLOR_RED, linecount, ANSI_COLOR_RESET);
       // count_file(subdir));
       free(subdir);
     }
@@ -185,6 +141,10 @@ bool analyze_dir(const char *dir_path) {
 
   closedir(current_dir);
   return true;
+}
+
+void init_files() {
+  create_list(files);
 }
 
 int main(int argc, char *argv[]) {
@@ -198,16 +158,35 @@ int main(int argc, char *argv[]) {
     path = getcwd(path, buff_size);
   }
 
+  // TODO: 
+  /*
+  1. main finder, program to seek out main functions, e.g. which source file
+  actually runs the code 
+  2. function linker, functions have pointers to function dependencies 
+  (a lot of work, so maybe not now)
+  3. once we have all the dependencies, construct the dir tree, each node
+  is either a subdir or a file with their dependencies 
+  4. using this information, generate a graph (display with react??) 
+  5. perform these operations for github repos, so linking with nodejs 
+  endgoal, make understanding codebases easier 
+
+  */
+
+  init_files(); 
+
   char current_dir[buff_size];
   getcwd(current_dir, buff_size);
 
   printf("current dir %s. argv[1], or the path: %s\n", current_dir, path);
 
+  // struct file current_file; 
+
   if (stat(path, &stat_buf) == 0) {
     if (S_ISREG(stat_buf.st_mode)) {
       int linecount = 0;
       struct array_list *dependencies = parse_file(path, &linecount);
-      printf("it's a file, lc: %d\n", linecount);
+      printf("it's a file,%slc: %d%s\n", ANSI_COLOR_RED, linecount, 
+              ANSI_COLOR_RESET);
 
       // out of dependencies, let's construct struct file infos from them
 
@@ -219,9 +198,7 @@ int main(int argc, char *argv[]) {
 
       char *current_path = "/";
       char dest[strlen(current_path) + strlen(path) + 1];
-      for (int i = 0; i < strlen(current_path) + strlen(path) + 1; i++) {
-        dest[i] = '\0';
-      }
+      dest[0] = '\0';
 
       // add 1 for null term
       strncat(dest, path, strlen(path) + 1);

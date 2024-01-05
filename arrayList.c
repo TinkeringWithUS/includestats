@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/* Should not be visible to user. */
 struct array_list {
   union array_element* array_store;
   int capacity;
@@ -105,3 +104,9 @@ void print_list(struct array_list* list) {
     printf("(idx: %d, val: %s)\n", i, get_element(list, i)->str_data);
   }
 }
+
+void print_list_int(struct array_list *list) {
+  for (int i = 0; i < get_size(list); i++) {
+    printf("(idx: %d, val: %d)\n", i, get_element(list, i)->int_data);
+  }
+} 

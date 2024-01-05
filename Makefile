@@ -1,15 +1,24 @@
-build: linecount.c arrayList.h arrayList.c  
-	gcc -g -o linecount linecount.c arrayList.c arrayList.h 
-
 run: linecount.c
-	build
+	make build
 	./linecount
+
+BUILD_DEPS := linecount.c 
+BUILD_DEPS += arrayList.h arrayList.c
+BUILD_DEPS += parseFile.h parseFile.c
+BUILD_DEPS += colors.h 
+BUILD_DEPS += stringHelp.h stringHelp.c
+
+build: $(BUILD_DEPS)
+	gcc -g -o linecount $(BUILD_DEPS)
 
 clean: linecount
 	rm linecount
 
-test_list: arrayList.h arrayList.c testList.c
-	gcc arrayList.c testList.c -o test_list 
+TEST_DEPS := testList.c
+TEST_DEPS += arrayList.h arrayList.c
+
+test_list: $(TEST_DEPS) 
+	gcc -g -o test_list $(TEST_DEPS) 
 	./test_list
 
 clean_list: test_list
