@@ -14,6 +14,8 @@
 
 #include "colors.h"
 
+#include <errno.h>
+
 // Don't worry about this for now, would take some work. 
 // struct file {
 //   struct dir * parent_dir; 
@@ -143,6 +145,44 @@ bool analyze_dir(const char *dir_path) {
   return true;
 }
 
+void print_stat_error() {
+  switch (errno)
+  {
+    case EACCES:
+      printf("no access\n"); 
+      break;
+    case EBADF: 
+      printf("invalid fd\n"); 
+      break;
+    case EFAULT: 
+      printf("bad addr\n"); 
+      break;
+    case EINVAL:
+      printf("invalid flag\n"); 
+      break;
+    case ELOOP:
+      printf("too many sym links\n"); 
+      break;
+    case ENAMETOOLONG:
+      printf("path name too long\n"); 
+      break;
+    case ENOENT:
+      printf("component of pathname does not exist\n"); 
+      break;
+    case ENOMEM:
+      printf("no mem\n"); 
+      break;
+    case ENOTDIR:
+      printf("component of pathname not dir\n"); 
+      break;
+    case EOVERFLOW:
+      printf("overflow\n"); 
+      break; 
+    default:
+      break;
+  }
+}
+
 void init_files() {
   create_list(files);
 }
@@ -153,7 +193,6 @@ int main(int argc, char *argv[]) {
   struct stat stat_buf;
 
   // printf("before path check, path %s\n", path);
-
   if (path == NULL) {
     path = getcwd(path, buff_size);
   }
@@ -169,7 +208,6 @@ int main(int argc, char *argv[]) {
   4. using this information, generate a graph (display with react??) 
   5. perform these operations for github repos, so linking with nodejs 
   endgoal, make understanding codebases easier 
-
   */
 
   init_files(); 
@@ -179,17 +217,23 @@ int main(int argc, char *argv[]) {
 
   printf("current dir %s. argv[1], or the path: %s\n", current_dir, path);
 
-  // struct file current_file; 
+  // struct file current_file;
+  int stat_code = stat(path, &stat_buf); 
 
-  if (stat(path, &stat_buf) == 0) {
+  if(stat_code == -1) {
+    printf("Input is bad, got an error, path %s\n", path); 
+    print_stat_error(); 
+    return 0; 
+  } 
+  
+  if (stat_code == 0) {
     if (S_ISREG(stat_buf.st_mode)) {
       int linecount = 0;
       struct array_list *dependencies = parse_file(path, &linecount);
-      printf("it's a file,%slc: %d%s\n", ANSI_COLOR_RED, linecount, 
+      printf("it's a file,%s line count: %d%s\n", ANSI_COLOR_RED, linecount, 
               ANSI_COLOR_RESET);
 
       // out of dependencies, let's construct struct file infos from them
-
       printf("file dependencies\n");
       print_list(dependencies);
 

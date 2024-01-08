@@ -1,4 +1,6 @@
 #include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "stringHelp.h"
 
@@ -20,4 +22,26 @@ void remove_spaces (char* restrict str_trimmed,
     str_untrimmed++;
   }
   *str_trimmed = '\0';
+}
+
+// give a string, find first character NEEDLE 
+// starting at START in the string  
+char * find_substr_backwards(char * line, int start, char needle) {
+  for(int i = start; i >= 0; i--) {
+    if(*(line + i) == needle) {
+      return line + i; 
+    }
+  }
+  return NULL; 
+}
+
+bool is_keyword(char * token) {
+  static const char * keywords[] = {"if", "for", "while"};  
+
+  for(int keyword = 0; keyword < 3; keyword++) {
+    if(strcmp(token, keywords[keyword]) == 0) {
+      return true; 
+    }
+  }
+  return false; 
 }
