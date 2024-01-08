@@ -1,6 +1,5 @@
 #include "parseFile.h"
 
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,6 +9,8 @@
 #include "arrayList.h"
 #include "colors.h"
 #include "stringHelp.h"
+
+#include "arraySet.h"
 
 bool is_comment(char *line) {
   char trimmed_line[strlen(line)];
@@ -118,9 +119,6 @@ char *get_function_name(char *line) {
     return NULL;
   }
 
-  // printf("function name before trim %s\n", function_name);
-  // printf("function name %s\n", trimmed_function_name);
-
   // but then how to deal with multi line functions??
   // not going to worry about it for now
   return trimmed_function_name;
@@ -138,11 +136,9 @@ char *get_function_dependency(char *line) {
 
   // also need to handle function calls that end with
   // (), e.g. if(foo()) needs to return foo
-
   int function_start_pos = function_start - line;
 
   char *space_delim = find_substr_backwards(line, function_start_pos, ' '); 
-
   int space_pos = space_delim - line;
 
   // need to get
@@ -216,6 +212,34 @@ void print_main(const char *line, const char *filename, size_t num_lines) {
   }
 }
 
+void print_function(char * line, char *current_func_def,
+                    int *line_count) {
+  char *func_depend = get_function_dependency(line);
+  if (func_depend) {
+    // TODO: fix get_function_dependency, returning prod+=add
+    // we only want add
+    if (strlen(current_func_def) == 0 || 
+        strcmp(current_func_def, func_depend) == 0) {
+      // this is a top level module function
+      printf("%s is a module function lc: %d\n", func_depend, *line_count);
+    } else {
+      printf("function %s <= %s lc: %d\n", current_func_def, func_depend,
+             *line_count);
+    }
+  }
+}
+
+void print_lib_dependencies(struct array_list *lib_dependencies,
+                            const char *filename) {
+  if (get_size(lib_dependencies) == 0) {
+    printf("%s%s has NO dependencies %s\n", ANSI_COLOR_YELLOW, filename,
+           ANSI_COLOR_RESET);
+  } else {
+    printf("%s%s has %d dependencies %s\n", ANSI_COLOR_YELLOW, filename,
+           get_size(lib_dependencies), ANSI_COLOR_RESET);
+  }
+}
+
 // get linecounts && a list of files this file depends on
 // e.g. #include <stdio.h>, <stdlib.h>
 struct array_list *parse_file(const char *filename, int *line_count) {
@@ -227,8 +251,9 @@ struct array_list *parse_file(const char *filename, int *line_count) {
   }
 
   char buffer[buff_size];
-  struct array_list *dependencies = create_list();
   char *current_func_def = NULL;
+  struct array_list *dependencies = create_list();
+  // struct array_set *unique_functions = create_set(); 
 
   bool in_function_definition = false;
 
@@ -237,7 +262,6 @@ struct array_list *parse_file(const char *filename, int *line_count) {
     *line_count = *line_count + 1;
 
     if (is_comment(buffer)) {
-      // printf("is a comment, buffer %s\n", buffer);
       continue;
     }
 
@@ -246,28 +270,14 @@ struct array_list *parse_file(const char *filename, int *line_count) {
 
     if (possible_func_def) {
       current_func_def = possible_func_def;
-    }
-
-    if (current_func_def != NULL) {
-      in_function_definition = true;
+      in_function_definition = true; 
     } else if (function_definition_end(buffer)) {
       in_function_definition = false;
       current_func_def = ""; 
     }
 
-    if (in_function_definition && possible_func_def == NULL) {
-      char *func_depend = get_function_dependency(buffer);
-      if (func_depend) {
-        // TODO: fix get_function_dependency, returning prod+=add
-        // we only want add
-        if(strlen(current_func_def) == 0) {
-          // this is a top level module function
-          printf("%s is a module function lc: %d\n", func_depend, *line_count);
-        } else {
-        printf("function %s <= %s lc: %d\n", current_func_def,
-               func_depend, *line_count);
-        }
-      }
+    if (in_function_definition) {
+      print_function(buffer, current_func_def, line_count);
     } else if (lib_dependency) {
       add_element(dependencies, lib_dependency);
       free(lib_dependency);
@@ -276,13 +286,9 @@ struct array_list *parse_file(const char *filename, int *line_count) {
     }
   }
 
-  if (get_size(dependencies) == 0) {
-    printf("%s%s has NO dependencies %s\n", ANSI_COLOR_YELLOW, filename,
-           ANSI_COLOR_RESET);
-  } else {
-    printf("%s%s has %d dependencies %s\n", ANSI_COLOR_YELLOW, filename,
-           get_size(dependencies), ANSI_COLOR_RESET);
-  }
+  print_lib_dependencies(dependencies, filename);
+
+  // print_set(set); 
 
   return dependencies;
 }

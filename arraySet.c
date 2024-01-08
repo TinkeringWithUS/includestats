@@ -66,3 +66,13 @@ int get_array_set_size(struct array_set* set) {
   }
   return get_size(set->backing_store); 
 }
+
+// void print_set(struct array_set* set) {
+//   if(set == NULL)  {
+//     return; 
+//   }
+
+//   for(int i = 0; i < get_array_set_size(set); i++) {
+//     printf("")
+//   }
+// }
