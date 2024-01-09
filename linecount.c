@@ -75,6 +75,34 @@ char *subdir_path(char *entry_name, const char *parent_dir) {
   return subdir_path;
 }
 
+char * get_file_extension(const char * filename) {
+  char * extension = strstr(filename, "."); 
+
+  if(!extension) {
+    return NULL; 
+  }
+  return extension;
+}
+
+
+bool is_accepted_file_type(const char * filename) {
+  const static char *ACCEPTED_FILE_EXTENSION[3] = {".c", ".h", ".txt"};
+
+  char * extension = get_file_extension(filename); 
+
+  if(!extension) {
+    return NULL;
+  }
+
+  for(int i = 0; i < 3; i++) {
+    if(strcmp(extension, ACCEPTED_FILE_EXTENSION[i]) == 0) {
+      return true; 
+    }
+  }
+
+  return false; 
+}
+
 bool analyze_dir(const char *dir_path) {
   struct stat stat_buff;
 
@@ -84,7 +112,9 @@ bool analyze_dir(const char *dir_path) {
       int line_count = 0;
       printf("dir path in analyze dir base case: %s\n", dir_path);
       // loop backwards,
-      struct array_list *dependencies = parse_file(dir_path, &line_count);
+      if(is_accepted_file_type(dir_path)) {
+        struct array_list *dependencies = parse_file(dir_path, &line_count);
+      }
       
       // struct file * root_file = malloc(sizeof(struct file)); 
       
@@ -131,7 +161,12 @@ bool analyze_dir(const char *dir_path) {
       char *subdir = subdir_path(current_dir_entry->d_name, dir_path);
       
       int linecount = 0;
-      struct array_list *dependencies = parse_file(subdir, &linecount);
+      if(is_accepted_file_type(subdir)) {
+        struct array_list *dependencies = parse_file(subdir, &linecount);
+      } else {
+        printf("%sIgnoring this file, not supported%s\n", ANSI_COLOR_RED,
+               ANSI_COLOR_RED);
+      }
 
       // this is a file, print out the line count with fgets
       printf("filename %s%s line count: %d %s\n", current_dir_entry->d_name,
@@ -210,6 +245,7 @@ int main(int argc, char *argv[]) {
   endgoal, make understanding codebases easier 
   */
 
+
   init_files(); 
 
   char current_dir[buff_size];
@@ -253,8 +289,6 @@ int main(int argc, char *argv[]) {
       analyze_dir(dest);
     }
   }
-
-  // printf("file %s has %d lines\n", argv[1], num_lines);
 
   return 0;
 }

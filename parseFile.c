@@ -14,7 +14,7 @@
 
 bool is_comment(char *line) {
   char trimmed_line[strlen(line)];
-  remove_spaces(trimmed_line, line);
+  trim_and_copy(trimmed_line, line);
   char *comment = strstr(trimmed_line, "//");
   if (comment) {
     int comment_pos = comment - trimmed_line;
@@ -80,37 +80,43 @@ char *get_include_name(char *include_line, char delim_start, char delim_end) {
 char *get_function_name(char *line) {
   // function definitions are usually on one line
   // assuming that
-  char *function_start = strstr(line, "(");
-  // char * space_delim = strstr(line, " ");
-  char *bracket_start = strstr(line, "{");
-  if (!function_start || !bracket_start) {
+  char *function_name_end = strstr(line, "(");
+  // char *bracket_start = strstr(line, "{");
+  if (!function_name_end) {
     return NULL;
   }
-  int function_start_pos = function_start - line;
 
-  char *function_name_end =
-      find_substr_backwards(line, function_start_pos, ' ');
-  if (!function_definition_end) {
-    function_name_end = find_substr_backwards(line, function_start_pos, '(');
-    if (!function_name_end) {
+  int function_end_pos = function_name_end - line;
+
+  char *function_name_start =
+      find_substr_backwards(line, function_end_pos, ' ');
+
+  // printf("function name end in get func name %s\n", function_name_start); 
+  
+  // deal with inline function calls, such as if(foo())
+  // if (!function_definition_end(line)) {
+  if(!function_name_start) {
+    // TODO: modify this, ex: int add(int a, int b), 
+    // the function_name_end start at ' ' works fine
+    // '(' is no good 
+    function_name_start = find_substr_backwards(line, function_end_pos, '(');
+    if (!function_name_start) {
       return NULL;
     }
   }
 
-  int name_end_pos = function_name_end - line;
+  int function_start_pos = function_name_start - line;
 
   // ex: is_function. space_pos = 4. function_start_pos = 16.
   // len is 11, but the remaining pos will be for null term
-  int function_name_len = function_start_pos - name_end_pos;
+  int function_name_len = function_end_pos - function_start_pos;
   char function_name[function_name_len];
-  strncpy(function_name, function_name_end + 1, function_name_len - 1);
+  strncpy(function_name, function_name_start + 1, function_name_len - 1);
   function_name[function_name_len - 1] = '\0';
 
   char *trimmed_function_name = calloc(function_name_len, sizeof(char));
-  remove_spaces(trimmed_function_name, function_name);
-
-  // printf("before if checks, trimmed function name %s\n",
-  // trimmed_function_name);
+  // remove spaces and copy over to trimmed function name 
+  trim_and_copy(trimmed_function_name, function_name);
 
   // function names and if, while, and for statement share
   // the exact same template, have to exclude them
@@ -148,7 +154,7 @@ char *get_function_dependency(char *line) {
   function_name[function_name_len - 1] = '\0';
 
   char *trimmed_function_name = calloc(function_name_len, sizeof(char));
-  remove_spaces(trimmed_function_name, function_name);
+  trim_and_copy(trimmed_function_name, function_name);
 
   // have the name, add to list, ensure this function name
   // isn't if, for, while, or do, they share similar structure
@@ -221,6 +227,9 @@ void print_function(char * line, char *current_func_def,
     if (strlen(current_func_def) == 0 || 
         strcmp(current_func_def, func_depend) == 0) {
       // this is a top level module function
+      // if(strcmp(current_func_def, func_depend) == 0) {
+      //   printf("current function def == func depend\n"); 
+      // }
       printf("%s is a module function lc: %d\n", func_depend, *line_count);
     } else {
       printf("function %s <= %s lc: %d\n", current_func_def, func_depend,
@@ -250,6 +259,8 @@ struct array_list *parse_file(const char *filename, int *line_count) {
     return NULL;
   }
 
+  printf("in parse file, filename %s\n", filename); 
+
   char buffer[buff_size];
   char *current_func_def = NULL;
   struct array_list *dependencies = create_list();
@@ -266,9 +277,10 @@ struct array_list *parse_file(const char *filename, int *line_count) {
     }
 
     union array_element *lib_dependency = get_dependency(buffer);
+    // printf("before getting function name, filename %s\n", filename); 
     char *possible_func_def = get_function_name(buffer);
 
-    if (possible_func_def) {
+    if (possible_func_def && !in_function_definition) {
       current_func_def = possible_func_def;
       in_function_definition = true; 
     } else if (function_definition_end(buffer)) {
@@ -287,7 +299,6 @@ struct array_list *parse_file(const char *filename, int *line_count) {
   }
 
   print_lib_dependencies(dependencies, filename);
-
   // print_set(set); 
 
   return dependencies;
