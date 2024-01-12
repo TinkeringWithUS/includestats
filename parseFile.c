@@ -89,17 +89,21 @@ char *get_function_name(char *line) {
   int function_end_pos = function_name_end - line;
 
   char *function_name_start =
-      find_substr_backwards(line, function_end_pos, ' ');
+      find_substr_backwards(line, function_end_pos - 1, ' ');
 
   // printf("function name end in get func name %s\n", function_name_start); 
-  
+
+  // TODO: possible for a line to not end, e.g. 
+  // trying to read a binary file, no \n or maybe even 
+  // null terminators  
   // deal with inline function calls, such as if(foo())
   // if (!function_definition_end(line)) {
   if(!function_name_start) {
     // TODO: modify this, ex: int add(int a, int b), 
     // the function_name_end start at ' ' works fine
-    // '(' is no good 
-    function_name_start = find_substr_backwards(line, function_end_pos, '(');
+    // '(' is no good
+    function_name_start =
+        find_substr_backwards(line, function_end_pos - 1, '(');
     if (!function_name_start) {
       return NULL;
     }
@@ -133,6 +137,7 @@ char *get_function_name(char *line) {
 // adds a function's name the array list, if it
 // is being called in the line. e.g. if(foo()) will
 // add "foo" to the list
+// TODO: can't handle if ()
 char *get_function_dependency(char *line) {
   char *function_start = strstr(line, "(");
 
@@ -144,7 +149,7 @@ char *get_function_dependency(char *line) {
   // (), e.g. if(foo()) needs to return foo
   int function_start_pos = function_start - line;
 
-  char *space_delim = find_substr_backwards(line, function_start_pos, ' '); 
+  char *space_delim = find_substr_backwards(line, function_start_pos - 1, ' '); 
   int space_pos = space_delim - line;
 
   // need to get
@@ -162,8 +167,7 @@ char *get_function_dependency(char *line) {
   if(is_keyword(trimmed_function_name)) {
     // need to check if these guys are calling functions themselves
     // TODO:
-    // for now, just going to add pure function calls
-    // e.g. int a = foo();
+    // for now, just going to add pure function call
     // doesn't handle inner func calls, like foo(foo())
     printf("todo, function name %s\n", trimmed_function_name);
     free(trimmed_function_name);
@@ -218,13 +222,13 @@ void print_main(const char *line, const char *filename, size_t num_lines) {
   }
 }
 
-void print_function(char * line, char *current_func_def,
+void print_function_dependencies(char * line, char *current_func_def,
                     int *line_count) {
   char *func_depend = get_function_dependency(line);
   if (func_depend) {
     // TODO: fix get_function_dependency, returning prod+=add
     // we only want add
-    if (strlen(current_func_def) == 0 || 
+    if (strlen(current_func_def) == 0 ||
         strcmp(current_func_def, func_depend) == 0) {
       // this is a top level module function
       // if(strcmp(current_func_def, func_depend) == 0) {
@@ -264,7 +268,7 @@ struct array_list *parse_file(const char *filename, int *line_count) {
   char buffer[buff_size];
   char *current_func_def = NULL;
   struct array_list *dependencies = create_list();
-  // struct array_set *unique_functions = create_set(); 
+  struct array_list *unique_module_functions = create_list(); 
 
   bool in_function_definition = false;
 
@@ -276,20 +280,29 @@ struct array_list *parse_file(const char *filename, int *line_count) {
       continue;
     }
 
+    // printf("buffer %s\n", buffer);
+
     union array_element *lib_dependency = get_dependency(buffer);
     // printf("before getting function name, filename %s\n", filename); 
     char *possible_func_def = get_function_name(buffer);
 
     if (possible_func_def && !in_function_definition) {
       current_func_def = possible_func_def;
-      in_function_definition = true; 
+      in_function_definition = true;
+
+      union array_element module_function; 
+      module_function.str_data = current_func_def;  
+
+      if(!has_element(unique_module_functions, &module_function, true)) {
+        add_element(unique_module_functions, &module_function);  
+      }
     } else if (function_definition_end(buffer)) {
       in_function_definition = false;
       current_func_def = ""; 
     }
 
-    if (in_function_definition) {
-      print_function(buffer, current_func_def, line_count);
+    if (in_function_definition && !is_keyword(current_func_def)) {
+      // print_function_dependencies(buffer, current_func_def, line_count);
     } else if (lib_dependency) {
       add_element(dependencies, lib_dependency);
       free(lib_dependency);
@@ -300,6 +313,9 @@ struct array_list *parse_file(const char *filename, int *line_count) {
 
   print_lib_dependencies(dependencies, filename);
   // print_set(set); 
+
+  printf("unique module functions of %s\n", filename); 
+  print_list(unique_module_functions); 
 
   return dependencies;
 }

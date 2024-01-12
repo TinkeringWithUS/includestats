@@ -1,8 +1,20 @@
-#include "hashmap.h" 
+#pragma once
 
-struct hashmap; 
+#include "hashmap.h"
+
+#include "arrayList.h"
+#include <stdlib.h>
 
 struct hash_element {
-  int hash; 
+  size_t hash; 
   
 };
+
+
+struct hashmap {
+  struct hash_element * backing_store; 
+  int capacity;  
+  int size;  
+}; 
+
+// struct hashmap  

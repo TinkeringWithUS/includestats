@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <string.h> 
+
 struct array_list {
   union array_element* array_store;
   int capacity;
@@ -97,7 +99,24 @@ union array_element* get_element(struct array_list* list, int index) {
   return &list->array_store[index];
 }
 
-int get_size(struct array_list* list) { return list->size; }
+bool has_element(struct array_list* list, union array_element* element,
+                 bool compare_string) {
+  int list_size = get_size(list); 
+
+  for (int i = 0; i < list_size; i++) {
+    if (compare_string &&
+        strcmp(element->str_data, get_element(list, i)->str_data) == 0) {
+      return true;
+    } else if (element->ptr_data == get_element(list, i)->ptr_data) {
+      return true;
+    }
+  }
+  return false;
+}
+
+int get_size(struct array_list* list) { 
+  return list->size; 
+}
 
 void print_list(struct array_list* list) {
   for (int i = 0; i < get_size(list); i++) {

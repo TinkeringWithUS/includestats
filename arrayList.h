@@ -22,6 +22,8 @@ bool remove_index(struct array_list *list, int index);
 
 int get_size(struct array_list *list);
 union array_element *get_element(struct array_list *list, int index);
+bool has_element(struct array_list *list, union array_element *element, 
+                bool compare_string); 
 
 void print_list(struct array_list *list);
 void print_list_int(struct array_list *list); 

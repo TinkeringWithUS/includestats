@@ -265,13 +265,13 @@ int main(int argc, char *argv[]) {
   if (stat_code == 0) {
     if (S_ISREG(stat_buf.st_mode)) {
       int linecount = 0;
-      struct array_list *dependencies = parse_file(path, &linecount);
+      struct array_list *lib_dependencies = parse_file(path, &linecount);
       printf("it's a file,%s line count: %d%s\n", ANSI_COLOR_RED, linecount, 
               ANSI_COLOR_RESET);
 
       // out of dependencies, let's construct struct file infos from them
       printf("file dependencies\n");
-      print_list(dependencies);
+      print_list(lib_dependencies);
 
     } else if (S_ISDIR(stat_buf.st_mode)) {
       printf("it's a directory\n");
